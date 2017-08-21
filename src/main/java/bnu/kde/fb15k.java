@@ -34,22 +34,46 @@ public class fb15k
         //get literal facts from fb
         File file2 = new File(fbpath);
         LineIterator it2 = FileUtils.lineIterator(file2, "UTF-8");
-        int count=0;
+        //int count=0;
         try {
             while (it2.hasNext()) {
-                System.out.println(count++);
+                //System.out.println(count++);
                 String line = it2.nextLine();
-                String [] ss = line.split(" ");
+                String [] ss = line.split("\t");
                 if (ss[2].startsWith("<http://"))continue;
                 String e = StringUtils.substringAfter(ss[0],"<http://rdf.freebase.com/ns/");
                 e=StringUtils.substringBefore(e,">");
-                e.replaceAll(".", "/");
+                e=e.replaceAll("\\.", "/");
+                e="/"+e;
                 if (!entities.contains(e)) continue;
+                if (ss[2].contains("@"))continue;
 
-                String r = StringUtils.substringAfter( ss[1],"<http://rdf.freebase.com/ns/");
-                r.replaceAll(".","/");
+                //String r = StringUtils.substringAfter( ss[1],"<http://rdf.freebase.com/ns/");
+                //r=r.replaceAll("\\.","/");
+                //r="/"+r;
+                System.out.println(e+"\t"+ss[1]+"\t"+ss[2]);
+                bufferedWriter.write(e+"\t"+ss[1]+"\t"+ss[2]);
+                bufferedWriter.newLine();
 
-                bufferedWriter.write(e+"\t"+r+"\t"+ss[2]);
+            }
+        } finally {
+            LineIterator.closeQuietly(it);
+            bufferedWriter.close();
+        }
+        bufferedWriter.close();
+    }
+
+    public static void filter(String input,String output) throws IOException {
+        File file = new File(input);
+        LineIterator it = FileUtils.lineIterator(file, "UTF-8");
+        BufferedWriter bufferedWriter = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(output,false),"UTF-8"));
+
+        try {
+            while (it.hasNext()) {
+                String line = it.nextLine();
+                String [] ss = line.split("\t");
+                if(ss[1].contains("common.identity.daylife_topic")||ss[1].contains("type.object.key")||ss[1].contains("wikipedia")||ss[1].contains("_id>")||ss[2].startsWith("<http")||ss[1].startsWith("<http://rdf.freebase.com/key/"))continue;
+                bufferedWriter.write(line);
                 bufferedWriter.newLine();
 
             }
@@ -64,7 +88,9 @@ public class fb15k
     public static void main( String[] args )
     {
         try {
-            getLiteralFactsForFB15K("~/Data/Freebase/FB15k/fb15k_all_relational_facts.txt","~/Data/Freebase/freebase-rdf-latest","~/Data/Freebase/FB15k/fb15k_all_literal_facts.txt");
+            filter("/home/zcwang/Data/Freebase/FB15k/fb15k_all_literal_facts.txt","/home/zcwang/Data/Freebase/FB15k/fb15k_all_literal_facts_cleaned_1.txt");
+            //getLiteralFactsForFB15K("/home/zcwang/Data/Freebase/FB15k/fb15k_all_relational_facts.txt",
+            // "/home/zcwang//Data/Freebase/freebase-rdf-latest","/home/zcwang/Data/Freebase/FB15k/fb15k_all_literal_facts.txt");
         } catch (IOException e) {
             e.printStackTrace();
         }
