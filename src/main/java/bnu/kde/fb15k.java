@@ -127,8 +127,8 @@ public class fb15k
         for (String sub : spl.keySet()){
             Map<String,Set<String> > pl = spl.get(sub);
             for (String pred: pl.keySet()){
-                if (!pred.contains(" <http://rdf.freebase.com/ns/"))continue;
-                String newPred = StringUtils.substringAfter(pred," <http://rdf.freebase.com/ns/");
+                if (!pred.contains("<http://rdf.freebase.com/ns/"))continue;
+                String newPred = StringUtils.substringAfter(pred,"<http://rdf.freebase.com/ns/");
                 newPred = StringUtils.substringBefore(newPred,">");
 
                 if ((pred.contains("_code>") && pred.contains("location")) || (pred.contains("location")&& pred.contains(".iso"))){
@@ -150,6 +150,7 @@ public class fb15k
                     if (lit.contains("<http://www.w3.org/2001/XMLSchema#date>")){
                         //String temp = StringUtils.substringAfter(lit,"\"");
                         String temp = StringUtils.removeAll(lit,"\"");
+                        temp = StringUtils.substringBefore(temp,"^^");
                         float days = dateConverter(temp);
                         bufferedWriter.write(sub+"\t"+newPred+"\t"+days);
                         bufferedWriter.newLine();
@@ -163,6 +164,7 @@ public class fb15k
                         continue;
                     }else if (lit.contains("<http://www.w3.org/2001/XMLSchema#gYear>")){
                         String temp = StringUtils.removeAll(lit,"\"");
+                        temp = StringUtils.substringBefore(temp,"^^");
                         temp = temp +"-01-01";
                         float days = dateConverter(temp);
                         bufferedWriter.write(sub+"\t"+newPred+"\t"+days);
