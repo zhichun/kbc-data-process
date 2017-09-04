@@ -103,6 +103,7 @@ public class fb15k
             float days =  TimeUnit.DAYS.convert(diff, TimeUnit.MILLISECONDS);
             return days;
         } catch (ParseException e) {
+            System.out.println(date);
             e.printStackTrace();
         }
         return 0;
@@ -133,7 +134,7 @@ public class fb15k
 
                 if ((pred.contains("_code>") && pred.contains("location")) || (pred.contains("location")&& pred.contains(".iso"))){
                     for (String lit : pl.get(pred)){
-                        String v = lit.substring(1,2);
+                        String v = lit.substring(1,3);
                         Integer code = locationCodes.get(v);
                         if (code == null){
                             code = locationCodes.size();
@@ -147,10 +148,12 @@ public class fb15k
                 }
 
                 for (String lit : pl.get(pred)){
+                    System.out.println(lit);
                     if (lit.contains("<http://www.w3.org/2001/XMLSchema#date>")){
                         //String temp = StringUtils.substringAfter(lit,"\"");
                         String temp = StringUtils.removeAll(lit,"\"");
                         temp = StringUtils.substringBefore(temp,"^^");
+                        if(temp.equals(""))continue;
                         float days = dateConverter(temp);
                         bufferedWriter.write(sub+"\t"+newPred+"\t"+days);
                         bufferedWriter.newLine();
@@ -158,6 +161,7 @@ public class fb15k
                     }else if (lit.contains("<http://www.w3.org/2001/XMLSchema#dateTime>")){
                         String temp = StringUtils.removeAll(lit,"\"");
                         temp = StringUtils.substringBefore(temp,"T");
+                        if(temp.equals(""))continue;
                         float days = dateConverter(temp);
                         bufferedWriter.write(sub+"\t"+newPred+"\t"+days);
                         bufferedWriter.newLine();
@@ -165,6 +169,7 @@ public class fb15k
                     }else if (lit.contains("<http://www.w3.org/2001/XMLSchema#gYear>")){
                         String temp = StringUtils.removeAll(lit,"\"");
                         temp = StringUtils.substringBefore(temp,"^^");
+                        if(temp.equals(""))continue;
                         temp = temp +"-01-01";
                         float days = dateConverter(temp);
                         bufferedWriter.write(sub+"\t"+newPred+"\t"+days);
@@ -202,6 +207,87 @@ public class fb15k
 
     }
 
+    public static void selectTestRelations(String relationalFacts,String candidateRelation) throws IOException {
+        File file = new File(candidateRelation);
+        LineIterator it = FileUtils.lineIterator(file, "UTF-8");
+        List<String> relations = new ArrayList<String>();
+        while (it.hasNext()) {
+            relations.add(it.nextLine());
+        }
+        it.close();
+
+        int [] kgmode = new int[Kgstore.allIndex];
+
+        Kgstore kg = new Kgstore(Kgstore.allIndex,kgmode);
+        kg.load(relationalFacts,Kgstore.relationalFacts);
+
+        List<Pair<String,Float>> plits = new ArrayList<Pair<String, Float>>();
+
+        for (String r: relations){
+            Map<String,Set<String> > temp = kg.getIndex(Kgstore.pred2sub2obj).get(r);
+            float count = 0;
+            for (Set<String> ss : temp.values()){
+                count+=ss.size();
+            }
+            plits.add(new Pair<String, Float>(r,count));
+        }
+
+
+        Collections.sort(plits);
+
+        for (Pair p : plits){
+            System.out.println(p.getFirst()+"\t"+p.getSecond());
+        }
+
+    }
+
+    public static void statistics(String litInput,String relationInput) throws IOException {
+        int [] kgmode = new int[Kgstore.allIndex];
+        kgmode[Kgstore.sub2pred2lit]=1;
+        kgmode[Kgstore.pred2sub2lit]=1;
+        kgmode[Kgstore.sub2pred2obj]=1;
+
+        Kgstore kg = new Kgstore(Kgstore.allIndex,kgmode);
+        kg.load(litInput,Kgstore.literalFacts);
+        kg.load(relationInput,Kgstore.relationalFacts);
+
+
+        Map<String,Map<String,Set<String> > > spl = kg.getIndex(Kgstore.sub2pred2lit);
+        Map<String,Map<String,Set<String> > > psl = kg.getIndex(Kgstore.pred2sub2lit);
+
+        System.out.println("Number of Entities have literal values: "+spl.size());
+        System.out.println("Number of Attributes: "+psl.size());
+
+        //get relations with sufficient number of literal facts
+
+        List<Pair<String,Float>> plits = new ArrayList<Pair<String, Float>>();
+
+        for (String pred : kg.getIndex(Kgstore.pred2sub2obj).keySet()){
+            Set<String> entities = new HashSet<String>();
+            for (String sub : kg.getIndex(Kgstore.pred2sub2obj).get(pred).keySet()){
+                entities.add(sub);
+                entities.addAll(kg.getIndex(Kgstore.pred2sub2obj).get(pred).get(sub));
+            }
+            int count=0;
+            for (String entity:entities){
+                Map<String,Set<String> > temp = spl.get(entity);
+                if (temp==null)continue;
+                count+=temp.size();
+            }
+            float avg;// = (float)count/(float)entities.size();
+            if(entities.size()==0)avg=0;
+            else avg = (float)count/(float)entities.size();
+            Pair<String,Float> p=new Pair<String, Float>(pred,avg);
+            plits.add(p);
+        }
+
+        Collections.sort(plits);
+
+        for (Pair p : plits){
+            System.out.println(p.getFirst()+"\t"+p.getSecond());
+        }
+    }
+
 
     public static boolean isNumeric(String str){
         Pattern pattern = Pattern.compile("-?[0-9]+.?[0-9]+");
@@ -212,16 +298,48 @@ public class fb15k
         return true;
     }
 
-    public static void main( String[] args )
-    {
+    public static void generatePRADataFB15K(String trainpath, String validpath, String testpath, String literalfactspath, String testrelationspath, String output) throws IOException {
+        //load triples
+        Kgstore kgall = new Kgstore("spo spl");
+        kgall.load(trainpath,Kgstore.relationalFacts);
+        kgall.load(validpath,Kgstore.relationalFacts);
+        kgall.load(testpath,Kgstore.relationalFacts);
+        kgall.load(literalfactspath,Kgstore.literalFacts);
 
-        try {
-            generateEvaluationData("/home/zcwang/Data/Freebase/FB15k/fb15k_all_literal_facts_cleaned_1.txt",
-                    "/home/zcwang/Data/Freebase/FB15k/fb15k_all_literal_facts_numeric.txt",
-                    "/home/zcwang/Data/Freebase/FB15k/fb15k_all_literal_facts_locationcodes.txt");
-        } catch (IOException e) {
-            e.printStackTrace();
+        Map<String,Integer> entityIds = kgall.generateEntityNameIMaps();
+        Map<String,Integer> relationIds= kgall.generateRelationNameIMaps();
+
+        Kgstore kgtrain = new Kgstore("pso");
+        kgtrain.load(trainpath,Kgstore.relationalFacts);
+        Kgstore kgtest = new Kgstore("pso");
+        kgtest.load(testpath,Kgstore.relationalFacts);
+
+        //load relation_list
+        List<String> testRelations = IOUtils.readList(testrelationspath);
+
+        //generate output
+        for (String tr : testRelations){
+            //train
+
         }
+
+    }
+
+
+
+
+
+    public static void main( String[] args ) throws IOException {
+        //statistics("data/fb15k_all_literal_facts_numeric.txt","data/fb15k_all_relational_facts.txt");
+        selectTestRelations("data/fb15k_all_relational_facts.txt","data/test_relations_avg_lit_facts_3.txt");
+
+//        try {
+//            generateEvaluationData("data/fb15k_all_literal_facts_cleaned_1.txt",
+//                    "data/fb15k_all_literal_facts_numeric.txt",
+//                    "data/fb15k_all_literal_facts_locationcodes.txt");
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
 
 //        try {
 //
