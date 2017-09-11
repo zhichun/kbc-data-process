@@ -299,6 +299,7 @@ public class fb15k
     }
 
     public static void generatePRADataFB15K(String trainpath, String validpath, String testpath, String literalfactspath, String testrelationspath, String output) throws IOException {
+        int maxNbPostive = 2000;
         //load triples
         Kgstore kgall = new Kgstore("spo spl");
         kgall.load(trainpath,Kgstore.relationalFacts);
@@ -320,10 +321,51 @@ public class fb15k
         //generate output
         for (String tr : testRelations){
             //train
+            List<String> heads= new ArrayList<String>();
+            List<String> tails = new ArrayList<String>();
+            List<Pair<String,String> >  positives = new ArrayList<Pair<String, String>>();
+            List<Pair<String,String> >  negatives = new ArrayList<Pair<String, String>>();
+            Map<String,Set<String> > so = kgtrain.getIndex(Kgstore.pred2sub2obj).get(tr);
+            if (tr==null)continue;
+            for (String k:so.keySet()){
+                heads.add(k);
+                tails.addAll(so.get(k));
+                for (String o:so.get(k)){
+                    positives.add(new Pair<String,String>(k,o));
+                }
+            }
+
+            Set<Integer> selectedIndex = randomSelect(positives.size(),maxNbPostive);
+
+            //test
 
         }
 
     }
+
+    public static void
+
+    public static Set<Integer> randomSelect(int originSize, int selectSize){
+        Set<Integer> selectedIndex = new HashSet<Integer>();
+        if (originSize>selectSize){
+            while(selectedIndex.size()< selectSize){
+                int id =(int) (Math.random() * (originSize-selectedIndex.size()));
+                int _id = 0;
+                do{
+                    if (!selectedIndex.contains(_id)){
+                        _id++;
+                    }
+                }while(_id==id);
+                selectedIndex.add(_id);
+            }
+        }else{
+            for (int i=0;i<originSize;i++){
+                selectedIndex.add(i);
+            }
+        }
+        return selectedIndex;
+    }
+
 
 
 
