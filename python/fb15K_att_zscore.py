@@ -4,6 +4,10 @@ import csv
 import numpy as np
 from scipy import stats
 
+df = pd.read_csv('fb15k_all_literal_facts_numbers.txt',sep='\t',header=None)
+
+
+
 def column(matrix, i):
     return [row[i] for row in matrix]
 
